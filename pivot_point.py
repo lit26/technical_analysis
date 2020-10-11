@@ -1,14 +1,25 @@
-import numpy as np
+# timeframe = daily
 import pandas as pd
-
-df = pd.read_csv('NIO.csv')
+df = pd.read_csv('data/NIO_D.csv')
 df['Date'] = pd.to_datetime(df['Date'])
-df['Pre_month'] = df['Date'] - pd.DateOffset(months=1)
 
-df_low = df['Low'].groupby([df.Date.dt.year.rename('year'), df.Date.dt.month.rename('month')]).min().reset_index().rename(columns={'Low':'LowPrev'})
-df_high = df['High'].groupby([df.Date.dt.year.rename('year'), df.Date.dt.month.rename('month')]).max().reset_index().rename(columns={'High':'HighPrev'})
-df_close = df['Close'].groupby([df.Date.dt.year.rename('year'), df.Date.dt.month.rename('month')]).last().reset_index().rename(columns={'Close':'ClosePrev'})
-df2 = df_low.merge(df_high,on=['year','month']).merge(df_close,on=['year','month'])
+timeframe = 'D'
+resample = None
+if timeframe == 'D':
+    df['Last'] = df['Date'] - pd.DateOffset(months=1)
+    resample = 'M'
+elif timeframe == 'W' or timeframe == 'M':
+    df['Last'] = df['Date'] - pd.DateOffset(years=1)
+    resample = 'A'
+
+cols = ['Date_x','Open', 'High','Low','Close','Adj Close',
+                'PP', 'R1','S1' , 'R2', 'S2', 'R3','S3','R4','S4','R5','S5']
+df.set_index(df["Date"],inplace=True)
+
+df_low = df['Low'].resample(resample).min().reset_index().rename(columns={'Low':'LowPrev'})
+df_high = df['High'].resample(resample).max().reset_index().rename(columns={'High':'HighPrev'})
+df_close = df['Close'].resample(resample).last().reset_index().rename(columns={'Close':'ClosePrev'})
+df2 = df_low.merge(df_high,on='Date').merge(df_close,on='Date')
 df2 = df2[1:]
 
 # Traditional
@@ -24,8 +35,12 @@ df2['S4'] = df2['PP'] * 3 - (3 * df2['HighPrev'] - df2['LowPrev'])
 df2['R5'] = df2['PP'] * 4 + (df2['HighPrev'] - 4 * df2['LowPrev'])
 df2['S5'] = df2['PP'] * 4 - (4 * df2['HighPrev'] - df2['LowPrev'])
 
-df = df.merge(df2, how='left', left_on=[df['Pre_month'].dt.year,df['Pre_month'].dt.month], right_on=['year','month'])
-df_result = df.drop(columns=['Adj Close', 'Volume','Pre_month', 'year', 'month', 'LowPrev', 'HighPrev', 'ClosePrev'])
-df_result.to_csv('result.csv')
+left_join = [df['Last'].dt.year,df['Last'].dt.month]
+right_join = [df2['Date'].dt.year,df2['Date'].dt.month]
 
+df = df.merge(df2, how='left', left_on=left_join, right_on=right_join)
 
+df_result = df[cols]
+
+print(df_result)
+# df_result.to_csv('result2.csv')
