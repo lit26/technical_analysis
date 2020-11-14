@@ -8,3 +8,4 @@ Temp to merge into TA library in the future.
 
 ## Plot
 - Plotly Plot
+- Streamlit Plot
